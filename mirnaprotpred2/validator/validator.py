@@ -399,5 +399,7 @@ def main():
     print("  miRNAProtPred 2.0 TRAINING & BENCHMARK PIPELINE COMPLETE")
     print("=" * 65)
 
+cli = main
+
 if __name__ == "__main__":
-    main()
+    cli()

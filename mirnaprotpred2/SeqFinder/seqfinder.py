@@ -309,5 +309,7 @@ def main():
 
     print("="*60)
 
+cli = main
+
 if __name__ == '__main__':
-    main()
+    cli()

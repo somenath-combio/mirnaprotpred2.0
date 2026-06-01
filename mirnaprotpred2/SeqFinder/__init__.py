@@ -1,1 +1,1 @@
-from .seqfinder import SeqFinder, scan_genome, stage2_score, assign_confidence
+from .seqfinder import scan_genome, stage2_score, assign_confidence

@@ -1,4 +1,4 @@
-from .SeqFinder.seqfinder import SeqFinder, scan_genome, stage2_score, assign_confidence
+from .SeqFinder.seqfinder import scan_genome, stage2_score, assign_confidence
 from .validator.validator import train_model
 
 __version__ = "2.0.0"
