@@ -26,5 +26,33 @@ Upgrade from v1 (Boyer-Moore + BLAST) → v2 (IntaRNA thermodynamics + XGBoost M
 - SARS-CoV-2 recovery: 16/16 miRNAs (SeqFinder Stage 1)
 - Novel virus        : hsa-miR-3941 → 3'UTR recovered as Medium confidence
 
+## Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- `IntaRNA` (Must be installed via conda for thermodynamic scoring)
+
+### Install via Conda (Recommended)
+
+To ensure `IntaRNA` installs correctly, using Conda is highly recommended:
+
+```bash
+conda create -n mirnaprotpred2_env python=3.10
+conda activate mirnaprotpred2_env
+conda install -c bioconda intarna
+```
+
+### Install from Source
+
+**Important**: You must still install `IntaRNA` via Conda before installing from source.
+
+```bash
+conda install -c bioconda intarna
+git clone https://github.com/somenath-combio/mirnaprotpred2.0.git
+cd mirnaprotpred2.0
+pip install -e .
+```
+
 ## Author
 Somenath Dutta (somenath@pusan.ac.kr)
