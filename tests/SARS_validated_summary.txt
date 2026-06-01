@@ -1,0 +1,114 @@
+SARS-CoV-2 VALIDATED miRNA RECOVERY ANALYSIS
+
+Total validated miRNAs : 16
+Recovered miRNAs : 16
+Recovery rate (%) : 100.0
+Total predicted sites : 97
+
+High-confidence : 12
+Medium-confidence : 4
+Low-confidence : 0
+
+Mean MFE : -11.87 ± 2.01
+Gaussian mean : -11.87
+Gaussian sigma : 2.01
+KDE peak : -11.69
+
+           miRNA        Target   MFE Confidence
+    hsa-miR-3941          3UTR -10.4     Medium
+    hsa-miR-3941          3UTR  -7.1        Low
+  hsa-miR-15a-5p      Membrane -11.3     Medium
+  hsa-miR-497-5p      Membrane -11.4     Medium
+  hsa-miR-29a-3p      Membrane -12.5       High
+  hsa-miR-29a-3p      Membrane -11.4     Medium
+  hsa-miR-145-5p      Membrane -13.2       High
+  hsa-miR-15a-5p Nucleoprotein -12.6       High
+  hsa-miR-15a-5p Nucleoprotein -12.0       High
+  hsa-miR-15a-5p Nucleoprotein -11.3     Medium
+  hsa-miR-497-5p Nucleoprotein -14.5       High
+  hsa-miR-497-5p Nucleoprotein -12.2       High
+  hsa-miR-497-5p Nucleoprotein -11.4     Medium
+  hsa-miR-29a-3p Nucleoprotein -13.4       High
+hsa-miR-128-1-5p Nucleoprotein -17.1       High
+hsa-miR-128-1-5p Nucleoprotein -17.0       High
+ hsa-miR-3130-3p         ORF10  -9.9        Low
+  hsa-miR-15a-5p         ORF3a -12.6       High
+  hsa-miR-497-5p         ORF3a -14.7       High
+  hsa-miR-15a-5p   polyprotien -16.6       High
+  hsa-miR-15a-5p   polyprotien -12.8       High
+  hsa-miR-15a-5p   polyprotien -12.7       High
+  hsa-miR-15a-5p   polyprotien -12.7       High
+  hsa-miR-15a-5p   polyprotien -12.5       High
+  hsa-miR-15a-5p   polyprotien -12.5       High
+  hsa-miR-15a-5p   polyprotien -12.1       High
+  hsa-miR-15a-5p   polyprotien -11.3     Medium
+  hsa-miR-153-3p   polyprotien -11.0     Medium
+  hsa-miR-153-3p   polyprotien -10.3     Medium
+  hsa-miR-153-3p   polyprotien  -9.9        Low
+  hsa-miR-153-3p   polyprotien  -9.8        Low
+  hsa-miR-153-3p   polyprotien  -7.4        Low
+     hsa-miR-298   polyprotien -13.3       High
+     hsa-miR-298   polyprotien -12.7       High
+     hsa-miR-298   polyprotien -12.4       High
+  hsa-miR-497-5p   polyprotien -15.3       High
+  hsa-miR-497-5p   polyprotien -14.4       High
+  hsa-miR-497-5p   polyprotien -11.6     Medium
+  hsa-miR-497-5p   polyprotien -11.4     Medium
+  hsa-miR-497-5p   polyprotien -11.4     Medium
+  hsa-miR-497-5p   polyprotien -11.4     Medium
+  hsa-miR-497-5p   polyprotien -11.4     Medium
+  hsa-miR-497-5p   polyprotien -10.8     Medium
+  hsa-miR-508-3p   polyprotien -11.0     Medium
+  hsa-miR-508-3p   polyprotien -10.2     Medium
+  hsa-miR-508-3p   polyprotien  -7.6        Low
+  hsa-miR-29a-3p   polyprotien -13.4       High
+  hsa-miR-29a-3p   polyprotien -13.4       High
+  hsa-miR-29a-3p   polyprotien -13.2       High
+  hsa-miR-29a-3p   polyprotien -12.7       High
+  hsa-miR-29a-3p   polyprotien -12.7       High
+  hsa-miR-29a-3p   polyprotien -12.1       High
+  hsa-miR-29a-3p   polyprotien -11.4     Medium
+  hsa-miR-29a-3p   polyprotien -11.4     Medium
+    hsa-miR-7-5p   polyprotien -11.6     Medium
+   hsa-miR-24-3p   polyprotien -12.1       High
+  hsa-miR-145-5p   polyprotien -14.0       High
+  hsa-miR-145-5p   polyprotien -12.4       High
+  hsa-miR-145-5p   polyprotien -10.6     Medium
+  hsa-miR-145-5p   polyprotien -10.1     Medium
+  hsa-miR-145-5p   polyprotien  -9.7        Low
+  hsa-miR-145-5p   polyprotien  -8.8        Low
+  hsa-miR-223-3p   polyprotien -10.0     Medium
+  hsa-miR-223-3p   polyprotien  -9.3        Low
+  hsa-miR-223-3p   polyprotien  -9.1        Low
+    hsa-miR-3941   polyprotien -10.9     Medium
+    hsa-miR-3941   polyprotien -10.6     Medium
+    hsa-miR-3941   polyprotien -10.6     Medium
+    hsa-miR-3941   polyprotien -10.4     Medium
+  hsa-miR-138-5p   polyprotien -14.6       High
+  hsa-miR-138-5p   polyprotien -11.1     Medium
+  hsa-miR-15a-5p         Spike -12.9       High
+  hsa-miR-15a-5p         Spike -12.6       High
+  hsa-miR-153-3p         Spike  -9.8        Low
+  hsa-miR-153-3p         Spike  -9.6        Low
+     hsa-miR-298         Spike -16.3       High
+     hsa-miR-298         Spike -11.5     Medium
+     hsa-miR-298         Spike -11.0     Medium
+  hsa-miR-497-5p         Spike -11.6     Medium
+  hsa-miR-497-5p         Spike -11.6     Medium
+  hsa-miR-508-3p         Spike  -8.7        Low
+  hsa-miR-508-3p         Spike  -8.3        Low
+  hsa-miR-508-3p         Spike  -7.6        Low
+ hsa-miR-1909-3p         Spike -15.3       High
+ hsa-miR-1909-3p         Spike -13.1       High
+ hsa-miR-3130-3p         Spike -14.8       High
+ hsa-miR-3130-3p         Spike -14.2       High
+ hsa-miR-3130-3p         Spike -14.1       High
+  hsa-miR-29a-3p         Spike -12.4       High
+    hsa-miR-7-5p         Spike -12.8       High
+   hsa-miR-24-3p         Spike -14.3       High
+  hsa-miR-145-5p         Spike -11.4     Medium
+  hsa-miR-145-5p         Spike -11.2     Medium
+  hsa-miR-145-5p         Spike -11.2     Medium
+    hsa-miR-3941         Spike  -9.7        Low
+ hsa-miR-365b-5p         Spike -13.3       High
+  hsa-miR-138-5p         Spike -13.2       High
