@@ -21,6 +21,7 @@ setup(
         "console_scripts": [
             "SeqFinder2=mirnaprotpred2.SeqFinder.seqfinder:cli",
             "validator2=mirnaprotpred2.validator.validator:cli",
+            "train_model2=mirnaprotpred2.validator.train_model:cli",
         ],
     },
     classifiers=[
