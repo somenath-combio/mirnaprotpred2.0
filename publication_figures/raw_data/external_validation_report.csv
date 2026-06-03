@@ -1,0 +1,7 @@
+Model,Cohort,Total_Samples,ROC-AUC,PR-AUC,MCC,F1-Score,Accuracy
+RandomForest (Best),Global External Set,170,0.5325,0.6316,0.1612,0.2376,0.5471
+XGBoost,Global External Set,170,0.8255,0.8755,0.5819,0.6719,0.7529
+RandomForest (Best),HCV Cohort,52,0.6169,0.7082,-0.2887,0.0,0.4231
+XGBoost,HCV Cohort,52,0.895,0.9001,0.0,0.0,0.5
+RandomForest (Best),Non-HCV Cohort,118,0.5925,0.7039,0.3365,0.338,0.6017
+XGBoost,Non-HCV Cohort,118,0.9431,0.9661,0.7572,0.8431,0.8644
