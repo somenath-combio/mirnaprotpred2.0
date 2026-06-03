@@ -17,7 +17,8 @@ from Bio import SeqIO
 from mirnaprotpred2.SeqFinder.seqfinder import (
     scan_genome_multiple,
     stage2_score,
-    load_target_sequence
+    load_target_sequence,
+    assign_confidence
 )
 
 # Resolving default model paths
@@ -54,37 +55,53 @@ def parse_mirna_ids(mirna_input):
     return [mid.strip() for mid in mirna_input.split(",") if mid.strip()]
 
 def main():
+    # Handle backward compatibility and positional argument redirection
+    args_list = sys.argv[1:]
+    
+    # Remove '--mirna' and '--genome' if present
+    cleaned_args = []
+    skip_next = False
+    for arg in args_list:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg in ['--mirna', '--genome']:
+            skip_next = True
+            continue
+        cleaned_args.append(arg)
+
     parser = argparse.ArgumentParser(
+        prog='validator2',
         description='validator2: Targeted miRNA Interaction Verification Engine for miRNAProtPred 2.0'
     )
-    parser.add_argument('--mirna', required=True,
+    # The first two positional arguments: mirna and genome
+    parser.add_argument('mirna',
                         help='miRNA IDs (comma-separated, .txt file, or .fasta file of miRNAs)')
-    parser.add_argument('--genome', required=True,
+    parser.add_argument('genome',
                         help='Path to target viral genome or mRNA FASTA file')
     parser.add_argument('--win', type=int, default=50,
                         help='Sliding target window length (default: 50)')
     parser.add_argument('--dg', type=float, default=-5.0,
                         help='delta_G threshold (default: -5.0)')
-    parser.add_argument('--seed', action='store_true',
-                        help='Enforce strict 7-mer seed match (positions 2-8)')
+    parser.add_argument('--mode', choices=['strict', 'relaxed'], default='strict',
+                        help='Search mode: strict enforces 7-mer seed matches, relaxed allows non-canonical matches (default: strict)')
+    parser.add_argument('--output', choices=['summary', 'raw', 'highconf'], default='summary',
+                        help='Output mode (default: summary)')
     parser.add_argument('--out', default=None,
-                        help='Save validation summary automatically to the specified CSV filename')
+                        help='Save validation results automatically to the specified CSV filename')
     parser.add_argument('--details', action='store_true',
-                        help='Show full SeqFinder2-style detailed interaction output')
+                        help='Alias for --output raw')
     parser.add_argument('--model', default=str(default_model) if default_model.exists() else None,
                         help='Path to custom mirnaprotpred2_best.pkl for Stage 2 scoring')
     parser.add_argument('--traincsv', default=str(default_train) if default_train.exists() else None,
                         help='Path to training CSV for feature column alignment')
+    parser.add_argument('--email', default='sudipta@pusan.ac.kr',
+                        help='NCBI Entrez email for Protein mode blast searches')
 
-    # Handle backward compatibility: check if user passed positional arguments
-    # miRNAProtPred 1.0 style: validator <miRNA_input> <genome_fasta> [options]
-    # If the user did not supply --mirna/--genome but supplied positional arguments, map them.
-    args_list = sys.argv[1:]
-    if len(args_list) >= 2 and not any(arg in args_list for arg in ['--mirna', '--genome', '-h', '--help']):
-        # Positional arguments: first is mirna, second is genome
-        args_list = ['--mirna', args_list[0], '--genome', args_list[1]] + args_list[2:]
+    args = parser.parse_args(cleaned_args)
 
-    args = parser.parse_args(args_list)
+    if args.details:
+        args.output = 'raw'
 
     print("="*60)
     print("  Validator2 — Targeted miRNA Verification (miRNAProtPred 2.0)")
@@ -93,7 +110,12 @@ def main():
     print(f"  Genome FASTA: {args.genome}")
     print(f"  Window Size : {args.win}")
     print(f"  delta_G Cut : <= {args.dg}")
-    print(f"  Seed Match  : {args.seed}")
+    print(f"  Mode        : {args.mode}")
+    print(f"  Output      : {args.output}")
+
+    if args.email:
+        from Bio import Entrez
+        Entrez.email = args.email
 
     # 1. Parse miRNA input
     requested_ids = parse_mirna_ids(args.mirna)
@@ -145,17 +167,33 @@ def main():
     # 4. Scan using SeqFinder2 Multiple Engine
     print(f"\nScanning genome against {len(mirnas)} miRNA sequence(s)...")
     start_time = time.time()
-    candidates = scan_genome_multiple(
-        mirnas         = mirnas,
-        genome_seq     = genome_seq,
-        win_len        = args.win,
-        dg_threshold   = args.dg,
-        top_n          = 999999, # retrieve all matches
-    )
-
-    # Filter by seed match if requested
-    if args.seed:
-        candidates = [c for c in candidates if c['seed_match'] == 1]
+    
+    seed_required = (args.mode == 'strict')
+    candidates = []
+    
+    if seed_required:
+        candidates = scan_genome_multiple(
+            mirnas         = mirnas,
+            genome_seq     = genome_seq,
+            win_len        = args.win,
+            dg_threshold   = args.dg,
+            top_n          = 999999, # retrieve all matches
+        )
+    else:
+        # Relaxed mode: run scan_genome for each miRNA sequentially to support wobble/non-canonical scans
+        from mirnaprotpred2.SeqFinder.seqfinder import scan_genome
+        for m_id, m_seq in mirnas:
+            res = scan_genome(
+                mirna_id       = m_id,
+                mirna_seq      = m_seq,
+                genome_seq     = genome_seq,
+                win_len        = args.win,
+                step           = 1, # check all positions
+                dg_threshold   = args.dg,
+                top_n          = 999999,
+                seed_required  = False
+            )
+            candidates.extend(res)
 
     # 5. Run Stage 2 ML Classification
     if candidates and args.model and args.traincsv:
@@ -208,25 +246,43 @@ def main():
     print(summary_df.to_string(index=False))
     print("="*60)
 
-    # 7. Print Detailed Output if requested
-    if args.details:
+    # 7. Print and save detailed output if raw or highconf is requested
+    df_detail = None
+    if args.output in ['raw', 'highconf']:
         if candidates:
-            print("\n" + "="*60)
-            print("  DETAILED INTERACTION ANALYSIS")
-            print("="*60)
-            # Reorder fields for nice display
-            cols = ['miRNA_ID', 'start', 'end', 'delta_G', 'seed_match', 'supp_match', 'cts_gc']
-            if 'ml_score' in candidates[0]:
-                cols.append('ml_score')
-            df_detail = pd.DataFrame(candidates)[cols]
-            print(df_detail.to_string(index=False))
-            print("="*60)
+            # Add confidence to all candidates if not present
+            for c in candidates:
+                if 'confidence' not in c:
+                    p = c.get('ml_score', 0.0)
+                    c['confidence'] = assign_confidence(p, c['delta_G'])
+
+            display_candidates = list(candidates)
+            if args.output == 'highconf':
+                display_candidates = [c for c in candidates if c.get('confidence') in ['Very High', 'High', 'Medium']]
+            
+            if display_candidates:
+                print("\n" + "="*60)
+                print("  DETAILED INTERACTION ANALYSIS")
+                print("="*60)
+                cols = ['miRNA_ID', 'start', 'end', 'delta_G', 'seed_match', 'supp_match', 'cts_gc']
+                if 'ml_score' in display_candidates[0]:
+                    cols.append('ml_score')
+                if 'confidence' in display_candidates[0]:
+                    cols.append('confidence')
+                df_detail = pd.DataFrame(display_candidates)[cols]
+                print(df_detail.to_string(index=False))
+                print("="*60)
+            else:
+                print("\nNo high-confidence detailed interactions to show.")
         else:
-            print("\nNo detailed interactions to show (no candidates passed threshold).")
+            print("\nNo detailed interactions to show (no candidates found).")
 
     # 8. Export to CSV
     if args.out:
-        out_df = pd.DataFrame(candidates) if args.details and candidates else summary_df
+        if args.output in ['raw', 'highconf'] and df_detail is not None:
+            out_df = df_detail
+        else:
+            out_df = summary_df
         out_df.to_csv(args.out, index=False)
         print(f"\n  Saved verification results → {args.out}")
 

@@ -27,16 +27,14 @@ from pathlib import Path
 
 def assign_confidence(prob, dg):
     """
-    3-tier confidence for novel virus generalization.
-    No retraining needed for unseen virus families.
-
-    High   : prob >= 0.50              (matches VIRBase experimental profile)
-    Medium : prob >= 0.25 AND dG<=-9.0 (thermodynamically supported)
-    Low    : prob <  0.25 OR  dG > -9.0 (computational prediction only)
-
-    Trained on: HCV, HBV, HIV, DENV, Influenza, EBV (VIRBase).
-    Zero-shot validated: SARS-CoV-2 3-UTR, hsa-miR-3941 (PMID:34198800).
+    4-tier confidence grading:
+    Very High : prob >= 0.75 AND dG <= -10.0
+    High      : prob >= 0.50
+    Medium    : prob >= 0.25 AND dG <= -9.0
+    Low       : prob < 0.25 OR dG > -9.0
     """
+    if prob >= 0.75 and dg <= -10.0:
+        return "Very High"
     if prob >= 0.50:
         return "High"
     if prob >= 0.25 and dg <= -9.0:
@@ -421,7 +419,9 @@ def stage2_score(candidates, model_pkl, train_csv):
 
     probs = model.predict_proba(df)[:,1]
     for i, c in enumerate(candidates):
-        c['ml_score'] = round(float(probs[i]), 4)
+        p = round(float(probs[i]), 4)
+        c['ml_score'] = p
+        c['confidence'] = assign_confidence(p, c['delta_G'])
 
     candidates.sort(key=lambda x: -x['ml_score'])
     return candidates
@@ -430,13 +430,28 @@ def stage2_score(candidates, model_pkl, train_csv):
 # ── CLI ────────────────────────────────────────────────────────────
 
 def main():
+    args_list = sys.argv[1:]
+    # Remove '--genome' if present to support legacy keyword parameters as positional
+    cleaned_args = []
+    skip_next = False
+    for arg in args_list:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == '--genome':
+            skip_next = True
+            continue
+        cleaned_args.append(arg)
+
     parser = argparse.ArgumentParser(
+        prog='SeqFinder2',
         description='SeqFinder + miRNAProtPred 2.0: two-stage viral miRNA target scanner'
     )
+    # The first positional argument: genome (which is the target FASTA or sequence)
+    parser.add_argument('genome',
+                        help='Path to viral mRNA/genome FASTA or raw sequence')
     parser.add_argument('--mirna',   default='ALL',
                         help='Mature miRNA sequence (A/T/U/G/C), path to a FASTA file of miRNAs, or "ALL" to scan the default database (default: ALL)')
-    parser.add_argument('--genome',  required=True,
-                        help='Path to viral mRNA/genome FASTA')
     parser.add_argument('--win',     type=int, default=50,
                         help='Sliding window length (default 50 nt)')
     parser.add_argument('--step',    type=int, default=10,
@@ -445,10 +460,12 @@ def main():
                         help='delta_G threshold, e.g. -5.0 (default)')
     parser.add_argument('--top',     type=int, default=50,
                         help='Return top N candidates (default 50)')
-    parser.add_argument('--seed',    action='store_true',
-                        help='Only return windows with 7-mer seed match')
-    parser.add_argument('--out',     default='seqfinder_output.csv',
-                        help='Output CSV path')
+    parser.add_argument('--mode',    choices=['strict', 'relaxed'], default='strict',
+                        help='Search mode: strict enforces 7-mer seed matches, relaxed allows non-canonical matches (default: strict)')
+    parser.add_argument('--output',  choices=['concise', 'raw', 'highconf', 'highconf_raw'], default='concise',
+                        help='Output mode (default: concise)')
+    parser.add_argument('--out',     default=None,
+                        help='Save results automatically to the specified CSV filename')
     pkg_data_dir = Path(__file__).resolve().parent / "data"
     default_model = pkg_data_dir / "mirnaprotpred2_best.pkl"
     default_train = pkg_data_dir / "cts_ml_features_v4_intraviral.csv"
@@ -457,18 +474,26 @@ def main():
                         help='Path to mirnaprotpred2_best.pkl for Stage 2 scoring')
     parser.add_argument('--traincsv',default=str(default_train) if default_train.exists() else None,
                         help='Path to training CSV (for feature column alignment)')
-    args = parser.parse_args()
+    parser.add_argument('--email',   default='sudipta@pusan.ac.kr',
+                        help='NCBI Entrez email for Protein mode blast searches')
+    
+    args = parser.parse_args(cleaned_args)
 
     print("="*60)
     print("  SeqFinder — Stage 1: Thermodynamic Genome Scan")
     print("="*60)
     print(f"  miRNA Mode: {args.mirna}")
     print(f"  Genome    : {args.genome}")
+    print(f"  Mode      : {args.mode}")
+    print(f"  Output    : {args.output}")
     # Verify IntaRNA executable exists and is runnable
     if not shutil.which(INTARNA_BIN):
         print(f"Error: IntaRNA executable not found at '{INTARNA_BIN}'", file=sys.stderr)
         print("Please ensure IntaRNA is installed and available in your PATH or current conda environment.", file=sys.stderr)
         sys.exit(1)
+
+    if args.email:
+        Entrez.email = args.email
 
     genome_seq = load_target_sequence(args.genome)
 
@@ -495,7 +520,11 @@ def main():
     else:
         mirnas.append(("Query_miRNA", args.mirna.strip().upper()))
 
+    seed_required = (args.mode == 'strict')
+
     if len(mirnas) > 1:
+        if not seed_required:
+            print("[Warning] Database-wide scanning is restricted to strict mode for performance.")
         candidates = scan_genome_multiple(
             mirnas         = mirnas,
             genome_seq     = genome_seq,
@@ -513,7 +542,7 @@ def main():
             step           = args.step,
             dg_threshold   = args.dg,
             top_n          = args.top,
-            seed_required  = args.seed,
+            seed_required  = seed_required,
         )
 
     if not candidates:
@@ -527,24 +556,45 @@ def main():
         candidates = stage2_score(candidates, args.model, args.traincsv)
         print(f"  Stage 2 complete. ML scores added.")
 
-    # Write output
-    out_path = Path(args.out)
-    fieldnames = list(candidates[0].keys())
-    with open(out_path, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(candidates)
+    # Assign fallback confidence/ml_score if Stage 2 didn't run
+    for c in candidates:
+        if 'ml_score' not in c:
+            c['ml_score'] = 0.0
+        if 'confidence' not in c:
+            c['confidence'] = assign_confidence(0.0, c['delta_G'])
 
-    print(f"\n  Results saved → {out_path}")
-    print(f"  Top 5 candidates:")
-    for i, c in enumerate(candidates[:5]):
-        score_str = f"  ml_score={c['ml_score']:.3f}" if 'ml_score' in c else ""
-        mirna_id_str = f" mirna={c['miRNA_ID']}" if 'miRNA_ID' in c else ""
-        print(f"    [{i+1}]{mirna_id_str} pos={c['start']}-{c['end']}  "
-              f"dG={c['delta_G']}  seed={c['seed_match']}"
-              f"  gc={c['cts_gc']:.2f}{score_str}")
+    # Filter and format results based on --output
+    concise_cols = ['miRNA_ID', 'start', 'end', 'delta_G', 'seed_match', 'cts_gc', 'ml_score', 'confidence']
+    display_candidates = []
+    
+    if args.output in ['concise', 'highconf']:
+        # Filter to High/Very High for concise, High/Very High/Medium for highconf
+        allowed_tiers = ['Very High', 'High'] if args.output == 'concise' else ['Very High', 'High', 'Medium']
+        display_candidates = [c for c in candidates if c['confidence'] in allowed_tiers]
+    elif args.output == 'highconf_raw':
+        display_candidates = [c for c in candidates if c['confidence'] in ['Very High', 'High', 'Medium']]
+    else: # raw
+        display_candidates = list(candidates)
 
+    if not display_candidates:
+        print("No candidates matched the output criteria.")
+        sys.exit(0)
+
+    import pandas as pd
+    df_display = pd.DataFrame(display_candidates)
+    if args.output in ['concise', 'highconf']:
+        existing_cols = [col for col in concise_cols if col in df_display.columns]
+        df_display = df_display[existing_cols]
+
+    print("\nFinal Results:\n")
+    print(df_display.to_string(index=False, max_rows=100))
     print("="*60)
+
+    if args.out:
+        out_path = Path(args.out)
+        df_display.to_csv(out_path, index=False)
+        print(f"  Results saved → {out_path}")
+        print("="*60)
 
 cli = main
 
