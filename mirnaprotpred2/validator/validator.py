@@ -124,10 +124,12 @@ def main():
                 db_map[db_id.lower()] = (db_id, db_seq)
 
         for req_id in requested_ids:
+            req_clean = req_id.lower().replace("-", "").strip()
             matched = False
-            # Try case-insensitive substring matching
+            # Try case-insensitive substring matching on hyphen-free IDs
             for k, (db_id, db_seq) in db_map.items():
-                if req_id.lower() in k or k in req_id.lower():
+                k_clean = k.replace("-", "")
+                if req_clean in k_clean or k_clean in req_clean:
                     mirnas.append((db_id, db_seq))
                     matched = True
             if not matched:
@@ -168,8 +170,13 @@ def main():
     # 6. Build Validation Summary YES/NO Table
     rows = []
     for req_id in requested_ids:
-        # Find candidates for this request (case-insensitive substring match)
-        id_candidates = [c for c in candidates if req_id.lower() in c['miRNA_ID'].lower() or c['miRNA_ID'].lower() in req_id.lower()]
+        # Find candidates for this request using hyphen-free matching
+        req_clean = req_id.lower().replace("-", "").strip()
+        id_candidates = []
+        for c in candidates:
+            c_clean = c['miRNA_ID'].lower().replace("-", "")
+            if req_clean in c_clean or c_clean in req_clean:
+                id_candidates.append(c)
         if id_candidates:
             # Sort by ML score descending, fallback to delta_G ascending
             id_candidates.sort(key=lambda x: (-x.get('ml_score', 0.0), x['delta_G']))
