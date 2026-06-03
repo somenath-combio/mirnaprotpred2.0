@@ -146,7 +146,7 @@ Re-train the model or run local grid search and generalization checks on your da
 ```bash
 train_model2 [options]
 ```
-Outputs model checkpoint files (`mirnaprotpred2_best.pkl`, `mirnaprotpred2_xgb.pkl`) and validation reports locally.
+Outputs model checkpoint files (`mirnaprotpred2.0_best.pkl`, `mirnaprotpred2.0_xgb.pkl`) and validation reports locally.
 
 ---
 

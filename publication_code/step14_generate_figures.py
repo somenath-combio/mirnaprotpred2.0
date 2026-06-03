@@ -67,8 +67,8 @@ y_true = df_ext["label"].values
 
 fig, ax = plt.subplots(figsize=(6, 6))
 model_files = [
-    ("output/mirnaprotpred2_xgb.pkl",  "miRNAProtPred2 (XGB)", C["xgb"],  "-"),
-    ("output/mirnaprotpred2_best.pkl", "miRNAProtPred2 (RF)",  C["rf"],   "--"),
+    ("output/mirnaprotpred2.0_xgb.pkl",  "miRNAProtPred2.0 (XGB)", C["xgb"],  "-"),
+    ("output/mirnaprotpred2.0_best.pkl", "miRNAProtPred2.0 (RF)",  C["rf"],   "--"),
 ]
 for pkl, label, col, ls in model_files:
     m = pickle.load(open(pkl,"rb"))
@@ -116,7 +116,7 @@ print("✅ Fig3 saved")
 # ════════════════════════════════════════════════════
 # FIGURE 4 — Feature importance (XGB top 15)
 # ════════════════════════════════════════════════════
-m = pickle.load(open("output/mirnaprotpred2_xgb.pkl","rb"))
+m = pickle.load(open("output/mirnaprotpred2.0_xgb.pkl","rb"))
 importances = m.feature_importances_
 feat_names  = list(m.feature_names_in_)
 idx = np.argsort(importances)[-15:]
@@ -134,7 +134,7 @@ print("✅ Fig4 saved")
 # ════════════════════════════════════════════════════
 # FIGURE 5 — dG distribution: positives vs negatives
 # ════════════════════════════════════════════════════
-train = pd.read_csv("virbase_final_dataset/virbase_cts/mirnaprotpred2_training_set.csv")
+train = pd.read_csv("virbase_final_dataset/virbase_cts/mirnaprotpred2.0_training_set.csv")
 pos_dg = train[train["label"]==1]["delta_G"]
 neg_dg = train[train["label"]==0]["delta_G"]
 fig, ax = plt.subplots(figsize=(8, 5))

@@ -65,8 +65,8 @@ except Exception:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 OUTPUT_PREDS_CSV      = OUTPUT_DIR / "cts_cv_predictions_multi.csv"
-OUTPUT_BEST_MODEL_PKL = OUTPUT_DIR / "mirnaprotpred2_best.pkl"
-OUTPUT_XGB_MODEL_PKL  = OUTPUT_DIR / "mirnaprotpred2_xgb.pkl"
+OUTPUT_BEST_MODEL_PKL = OUTPUT_DIR / "mirnaprotpred2.0_best.pkl"
+OUTPUT_XGB_MODEL_PKL  = OUTPUT_DIR / "mirnaprotpred2.0_xgb.pkl"
 OUTPUT_LOVO_REPORT_CSV= OUTPUT_DIR / "virus_generalization_report.csv"
 
 # Taxonomic Virus Family lookup for LOVO reporting

@@ -45,8 +45,8 @@ warnings.filterwarnings("ignore")
 ROOT = Path("/home/somenath/Pictures/Publication_somenath")
 INPUT_FEATURES_CSV = ROOT / "virbase_final_dataset/virbase_cts/cts_ml_features_v4_intraviral.csv"
 OUTPUT_PREDS_CSV      = ROOT / "output/cts_cv_predictions_multi.csv"
-OUTPUT_BEST_MODEL_PKL = ROOT / "output/mirnaprotpred2_best.pkl"
-OUTPUT_XGB_MODEL_PKL  = ROOT / "output/mirnaprotpred2_xgb.pkl"
+OUTPUT_BEST_MODEL_PKL = ROOT / "output/mirnaprotpred2.0_best.pkl"
+OUTPUT_XGB_MODEL_PKL  = ROOT / "output/mirnaprotpred2.0_xgb.pkl"
 OUTPUT_LOVO_REPORT_CSV= ROOT / "output/virus_generalization_report.csv"
 
 # Taxonomic Virus Family lookup for LOVO reporting

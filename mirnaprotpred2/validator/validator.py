@@ -23,7 +23,7 @@ from mirnaprotpred2.SeqFinder.seqfinder import (
 
 # Resolving default model paths
 pkg_data_dir = Path(__file__).resolve().parent.parent / "SeqFinder" / "data"
-default_model = pkg_data_dir / "mirnaprotpred2_best.pkl"
+default_model = pkg_data_dir / "mirnaprotpred2.0_best.pkl"
 default_train = pkg_data_dir / "cts_ml_features_v4_intraviral.csv"
 default_xlsx  = pkg_data_dir / "data.xlsx"
 
@@ -92,7 +92,7 @@ def main():
     parser.add_argument('--details', action='store_true',
                         help='Alias for --output raw')
     parser.add_argument('--model', default=str(default_model) if default_model.exists() else None,
-                        help='Path to custom mirnaprotpred2_best.pkl for Stage 2 scoring')
+                        help='Path to custom mirnaprotpred2.0_best.pkl for Stage 2 scoring')
     parser.add_argument('--traincsv', default=str(default_train) if default_train.exists() else None,
                         help='Path to training CSV for feature column alignment')
     parser.add_argument('--email', default='sudipta@pusan.ac.kr',

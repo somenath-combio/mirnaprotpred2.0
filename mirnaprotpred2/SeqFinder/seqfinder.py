@@ -528,11 +528,11 @@ def main():
     parser.add_argument('--out',     default=None,
                         help='Save results automatically to the specified CSV filename')
     pkg_data_dir = Path(__file__).resolve().parent / "data"
-    default_model = pkg_data_dir / "mirnaprotpred2_best.pkl"
+    default_model = pkg_data_dir / "mirnaprotpred2.0_best.pkl"
     default_train = pkg_data_dir / "cts_ml_features_v4_intraviral.csv"
 
     parser.add_argument('--model',   default=str(default_model) if default_model.exists() else None,
-                        help='Path to mirnaprotpred2_best.pkl for Stage 2 scoring')
+                        help='Path to mirnaprotpred2.0_best.pkl for Stage 2 scoring')
     parser.add_argument('--traincsv',default=str(default_train) if default_train.exists() else None,
                         help='Path to training CSV (for feature column alignment)')
     parser.add_argument('--email',   default='sudipta@pusan.ac.kr',

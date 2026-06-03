@@ -15,9 +15,9 @@ This folder contains the complete, sequential pipeline scripts used to build, tr
 | **05** | `step05_update_metadata.py` | Merges salvaged targets and populates taxonomies. | Verified records | `viral_miRNA_ML_dataset.csv` |
 | **06** | `step06_final_qc.py` | Validates dataset integrity and duplicate removal. | Main dataset | Cleaned dataset |
 | **07** | `step07_generate_cts.py` | Scans for thermodynamic Candidate Target Sites (CTS). | Cleaned sequences | `cts_positives.csv` |
-| **08** | `step08_clean_cts.py` | Filters CTS and generates paired hard negatives. | `cts_positives.csv` | `mirnaprotpred2_training_set.csv` |
+| **08** | `step08_clean_cts.py` | Filters CTS and generates paired hard negatives. | `cts_positives.csv` | `mirnaprotpred2.0_training_set.csv` |
 | **09** | `step09_feature_extraction.py` | Computes the 49-dimensional biophysical features. | Training set CSV | `cts_ml_features_v4_intraviral.csv` |
-| **10** | `step10_model_training.py` | Trains RF and XGBoost classifiers via CV. | Features CSV | `mirnaprotpred2_xgb.pkl`, `mirnaprotpred2_best.pkl` |
+| **10** | `step10_model_training.py` | Trains RF and XGBoost classifiers via CV. | Features CSV | `mirnaprotpred2.0_xgb.pkl`, `mirnaprotpred2.0_best.pkl` |
 | **11** | `step11_prepare_miranda.py` | Prepares the 170-sample independent validation set. | `virmirna_85_normalized.csv` | `mirnas_85.fa`, `targets_85.fa` |
 | **12** | `step12_targetscan_benchmark.py`| Evaluates TargetScan seed-match rules on test set. | `virmirna_85_with_targets.csv` | TargetScan AUC, F1 metrics |
 | **13** | `step13_miranda_benchmark.py` | Parses and evaluates miRanda scan results. | `miranda_output_85.txt.gz` | miRanda AUC, F1 metrics |
