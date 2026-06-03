@@ -38,5 +38,7 @@ setup(
         "biopython>=1.79",
         "pyfiglet>=1.0.4",
         "openpyxl>=3.1.5",
+        "lightgbm>=3.3.0",
+        "catboost>=1.0.0",
     ],
 )

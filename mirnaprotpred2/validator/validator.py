@@ -42,12 +42,32 @@ from catboost import CatBoostClassifier
 import warnings
 warnings.filterwarnings("ignore")
 
+# Resolve paths dynamically.
+PKG_ROOT = Path(__file__).resolve().parent.parent
+PACKAGED_FEATURES_CSV = PKG_ROOT / "SeqFinder" / "data" / "cts_ml_features_v4_intraviral.csv"
+
 ROOT = Path("/home/somenath/Pictures/Publication_somenath")
-INPUT_FEATURES_CSV = ROOT / "virbase_final_dataset/virbase_cts/cts_ml_features_v4_intraviral.csv"
-OUTPUT_PREDS_CSV      = ROOT / "output/cts_cv_predictions_multi.csv"
-OUTPUT_BEST_MODEL_PKL = ROOT / "output/mirnaprotpred2_best.pkl"
-OUTPUT_XGB_MODEL_PKL  = ROOT / "output/mirnaprotpred2_xgb.pkl"
-OUTPUT_LOVO_REPORT_CSV= ROOT / "output/virus_generalization_report.csv"
+if not ROOT.exists():
+    ROOT = Path(".").resolve()
+
+if PACKAGED_FEATURES_CSV.exists():
+    INPUT_FEATURES_CSV = PACKAGED_FEATURES_CSV
+else:
+    INPUT_FEATURES_CSV = ROOT / "virbase_final_dataset/virbase_cts/cts_ml_features_v4_intraviral.csv"
+
+# Ensure output directory exists
+OUTPUT_DIR = ROOT / "output"
+try:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # If not writable, fall back to current directory output
+    OUTPUT_DIR = Path("./output").resolve()
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+OUTPUT_PREDS_CSV      = OUTPUT_DIR / "cts_cv_predictions_multi.csv"
+OUTPUT_BEST_MODEL_PKL = OUTPUT_DIR / "mirnaprotpred2_best.pkl"
+OUTPUT_XGB_MODEL_PKL  = OUTPUT_DIR / "mirnaprotpred2_xgb.pkl"
+OUTPUT_LOVO_REPORT_CSV= OUTPUT_DIR / "virus_generalization_report.csv"
 
 # Taxonomic Virus Family lookup for LOVO reporting
 VIRUS_TO_FAMILY = {
@@ -399,6 +419,7 @@ def main():
     print("  miRNAProtPred 2.0 TRAINING & BENCHMARK PIPELINE COMPLETE")
     print("=" * 65)
 
+train_model = main
 cli = main
 
 if __name__ == "__main__":

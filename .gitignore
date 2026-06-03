@@ -8,3 +8,4 @@ build/
 !mirnaprotpred2/SeqFinder/data/*.pkl
 .DS_Store
 *.swp
+catboost_info/

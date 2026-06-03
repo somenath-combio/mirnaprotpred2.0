@@ -21,6 +21,7 @@ import argparse
 import subprocess
 import csv
 import sys
+import shutil
 from pathlib import Path
 
 
@@ -42,7 +43,7 @@ def assign_confidence(prob, dg):
         return "Medium"
     return "Low"
 
-INTARNA_BIN = "/home/somenath/miniconda3/envs/cts_env/bin/IntaRNA"
+INTARNA_BIN = shutil.which("IntaRNA") or "/home/somenath/miniconda3/envs/cts_env/bin/IntaRNA"
 
 # ── helpers ────────────────────────────────────────────────────────
 
@@ -257,9 +258,13 @@ def main():
                         help='Only return windows with 7-mer seed match')
     parser.add_argument('--out',     default='seqfinder_output.csv',
                         help='Output CSV path')
-    parser.add_argument('--model',   default=None,
+    pkg_data_dir = Path(__file__).resolve().parent / "data"
+    default_model = pkg_data_dir / "mirnaprotpred2_best.pkl"
+    default_train = pkg_data_dir / "cts_ml_features_v4_intraviral.csv"
+
+    parser.add_argument('--model',   default=str(default_model) if default_model.exists() else None,
                         help='Path to mirnaprotpred2_best.pkl for Stage 2 scoring')
-    parser.add_argument('--traincsv',default=None,
+    parser.add_argument('--traincsv',default=str(default_train) if default_train.exists() else None,
                         help='Path to training CSV (for feature column alignment)')
     args = parser.parse_args()
 
@@ -268,6 +273,11 @@ def main():
     print("="*60)
     print(f"  miRNA   : {args.mirna}")
     print(f"  Genome  : {args.genome}")
+    # Verify IntaRNA executable exists and is runnable
+    if not shutil.which(INTARNA_BIN):
+        print(f"Error: IntaRNA executable not found at '{INTARNA_BIN}'", file=sys.stderr)
+        print("Please ensure IntaRNA is installed and available in your PATH or current conda environment.", file=sys.stderr)
+        sys.exit(1)
 
     genome_seq = load_fasta(args.genome)
     candidates = scan_genome(
