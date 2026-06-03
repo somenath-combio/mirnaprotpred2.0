@@ -17,7 +17,7 @@ from Bio import SeqIO
 from mirnaprotpred2.SeqFinder.seqfinder import (
     scan_genome_multiple,
     stage2_score,
-    load_fasta
+    load_target_sequence
 )
 
 # Resolving default model paths
@@ -140,7 +140,7 @@ def main():
         sys.exit(1)
 
     # 3. Load Genome Sequence
-    genome_seq = load_fasta(args.genome)
+    genome_seq = load_target_sequence(args.genome)
 
     # 4. Scan using SeqFinder2 Multiple Engine
     print(f"\nScanning genome against {len(mirnas)} miRNA sequence(s)...")

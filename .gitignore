@@ -9,3 +9,5 @@ build/
 .DS_Store
 *.swp
 catboost_info/
+.seqfinder_cache/
+

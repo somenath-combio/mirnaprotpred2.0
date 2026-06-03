@@ -93,6 +93,94 @@ def run_intarna(mirna, target, timeout=20):
     except Exception:
         return None
 
+import os
+import hashlib
+from Bio.Blast import NCBIWWW, NCBIXML
+from Bio import Entrez, SeqIO
+
+CACHE_DIR = ".seqfinder_cache"
+Entrez.email = "sudipta@pusan.ac.kr"
+
+def get_sequence_type(seq):
+    if not seq:
+        raise ValueError("Empty sequence")
+    seq = seq.upper().strip()
+    dna_chars = set("ATGCN")
+    rna_chars = set("AUGCN")
+    protein_chars = set("ACDEFGHIKLMNPQRSTVWY*")
+    seq_chars = set(seq)
+    if 'U' in seq_chars and seq_chars.issubset(rna_chars):
+        return "RNA"
+    if seq_chars.issubset(dna_chars):
+        return "DNA"
+    if seq_chars.issubset(protein_chars):
+        return "Protein"
+    raise ValueError("Invalid biological sequence")
+
+def run_tblastn(protein_seq):
+    seq_hash = hashlib.md5(protein_seq.encode()).hexdigest()[:8]
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    cache_file = os.path.join(CACHE_DIR, f"blast_cache_{seq_hash}.xml")
+    print("[Protein Mode] Initiating tblastn search against NCBI 'nt' database...")
+    try:
+        if os.path.exists(cache_file):
+            print(f"[Protein Mode] Loading cached BLAST results from {cache_file}...")
+            with open(cache_file, "r") as f:
+                blast_records = NCBIXML.parse(f)
+                blast_record = next(blast_records)
+        else:
+            print("[Protein Mode] Executing remote tblastn (this may take a while)...")
+            result_handle = NCBIWWW.qblast("tblastn", "nt", protein_seq)
+            xml_data = result_handle.read()
+            with open(cache_file, "w") as f:
+                f.write(xml_data)
+            with open(cache_file, "r") as f:
+                blast_records = NCBIXML.parse(f)
+                blast_record = next(blast_records)
+        if not blast_record.alignments:
+            print("[Protein Mode] Error: No tblastn alignments found.")
+            return None
+        best_alignment = blast_record.alignments[0]
+        best_hsp = best_alignment.hsps[0]
+        accession = best_alignment.accession
+        hit_start = min(best_hsp.sbjct_start, best_hsp.sbjct_end)
+        hit_end = max(best_hsp.sbjct_start, best_hsp.sbjct_end)
+        print(f"[Protein Mode] Found best hit: {best_alignment.title[:50]}...")
+        print(f"[Protein Mode] Alignment coordinates: {hit_start} - {hit_end}")
+        return {
+            'accession': accession,
+            'hit_start': hit_start,
+            'hit_end': hit_end,
+            'title': best_alignment.title
+        }
+    except Exception as e:
+        print(f"[Protein Mode] Error during tblastn execution: {e}")
+        return None
+
+def retrieve_nucleotide_region(accession, start, end):
+    fetch_start = start
+    fetch_end = end
+    print(f"[Protein Mode] Retrieving exact nucleotide alignment region {accession}:{fetch_start}-{fetch_end}...")
+    try:
+        handle = Entrez.efetch(
+            db="nucleotide",
+            id=accession,
+            seq_start=fetch_start,
+            seq_stop=fetch_end,
+            rettype="fasta",
+            retmode="text"
+        )
+        records = list(SeqIO.parse(handle, "fasta"))
+        if not records:
+            print("[Protein Mode] Error: Empty retrieval result.")
+            return None
+        seq = str(records[0].seq)
+        print(f"[Protein Mode] Successfully retrieved {len(seq)} nt sequence.")
+        return seq
+    except Exception as e:
+        print(f"[Protein Mode] Error during sequence retrieval: {e}")
+        return None
+
 def load_fasta(path):
     """Returns concatenated sequence from a FASTA file."""
     seq = []
@@ -100,8 +188,36 @@ def load_fasta(path):
         for line in f:
             line = line.strip()
             if line.startswith('>'): continue
-            seq.append(line.upper().replace('U','T'))
+            seq.append(line.upper())
     return ''.join(seq)
+
+def load_target_sequence(genome_input):
+    if os.path.isfile(genome_input):
+        seq = load_fasta(genome_input)
+    else:
+        seq = genome_input.strip()
+    seq_type = get_sequence_type(seq)
+    print(f"\nDetected sequence type: {seq_type}")
+    if seq_type == "Protein":
+        if len(seq) < 20:
+            raise ValueError("Protein sequence too short for reliable tblastn.")
+        print("[Protein Mode] Protein sequence detected.")
+        print("[Protein Mode] Initiating protein-guided nucleotide region discovery followed by RNA motif interaction analysis.")
+        blast_info = run_tblastn(seq)
+        if not blast_info:
+            raise ValueError("BLAST search failed.")
+        retrieved_seq = retrieve_nucleotide_region(
+            blast_info['accession'],
+            blast_info['hit_start'],
+            blast_info['hit_end']
+        )
+        if not retrieved_seq:
+            raise ValueError("Sequence retrieval failed.")
+        return retrieved_seq.upper().replace('U', 'T')
+    elif seq_type == "RNA":
+        return seq.upper().replace('U', 'T')
+    else:
+        return seq.upper()
 
 # ── main scan ──────────────────────────────────────────────────────
 
@@ -354,7 +470,7 @@ def main():
         print("Please ensure IntaRNA is installed and available in your PATH or current conda environment.", file=sys.stderr)
         sys.exit(1)
 
-    genome_seq = load_fasta(args.genome)
+    genome_seq = load_target_sequence(args.genome)
 
     # Resolve miRNAs to scan
     mirnas = []
