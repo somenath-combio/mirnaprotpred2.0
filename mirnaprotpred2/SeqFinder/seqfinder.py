@@ -105,7 +105,9 @@ def load_fasta(path):
 
 # ── main scan ──────────────────────────────────────────────────────
 
-def scan_genome(mirna_seq, genome_seq, win_len=50, step=10,
+# ── main scan ──────────────────────────────────────────────────────
+
+def scan_genome(mirna_id, mirna_seq, genome_seq, win_len=50, step=10,
                 dg_threshold=-5.0, top_n=50, seed_required=False):
     """
     Slide a window across the genome and collect all candidate
@@ -113,6 +115,7 @@ def scan_genome(mirna_seq, genome_seq, win_len=50, step=10,
 
     Parameters
     ----------
+    mirna_id       : str  — identifier for the miRNA
     mirna_seq      : str  — mature miRNA sequence (T or U)
     genome_seq     : str  — full viral mRNA/genome (T or U)
     win_len        : int  — window length to scan (default 50 nt)
@@ -129,6 +132,7 @@ def scan_genome(mirna_seq, genome_seq, win_len=50, step=10,
     genome_len = len(genome_seq)
     total_windows = (genome_len - win_len) // step
 
+    print(f"  miRNA ID       : {mirna_id}")
     print(f"  Genome length  : {genome_len:,} nt")
     print(f"  Window length  : {win_len} nt")
     print(f"  Step size      : {step} nt")
@@ -156,6 +160,8 @@ def scan_genome(mirna_seq, genome_seq, win_len=50, step=10,
         if dg > dg_threshold: continue
 
         candidates.append({
+            'miRNA_ID'   : mirna_id,
+            'miRNA_seq'  : mirna_seq,
             'start'      : start,
             'end'        : end,
             'window_seq' : window,
@@ -170,6 +176,75 @@ def scan_genome(mirna_seq, genome_seq, win_len=50, step=10,
     print(f"\n  Scanned: {scanned:,} windows | Candidates: {len(candidates)}")
 
     # Sort by delta_G ascending (most stable binding first)
+    candidates.sort(key=lambda x: x['delta_G'])
+    return candidates[:top_n]
+
+
+def scan_genome_multiple(mirnas, genome_seq, win_len=50, dg_threshold=-5.0, top_n=50):
+    """
+    Scan a genome against multiple miRNAs using a fast Boyer-Moore seed match pre-filter.
+    """
+    candidates = []
+    genome_len = len(genome_seq)
+
+    print(f"  Genome length  : {genome_len:,} nt")
+    print(f"  Window length  : {win_len} nt")
+    print(f"  Total miRNAs   : {len(mirnas):,}")
+    print(f"  delta_G cutoff : <= {dg_threshold}")
+    print(f"  Scanning multiple miRNAs with Boyer-Moore pre-filter...")
+
+    for idx, (mirna_id, mirna_seq) in enumerate(mirnas):
+        if (idx + 1) % 100 == 0 or idx + 1 == len(mirnas):
+            print(f"    Processed {idx + 1}/{len(mirnas)} miRNAs...")
+
+        if len(mirna_seq) < 8:
+            continue
+
+        # Get 7-mer seed (positions 2-8, 1-indexed) and its reverse complement
+        seed = mirna_seq[1:8].upper().replace('U', 'T')
+        seed_rc = rc(seed)
+
+        # Fast search for the seed reverse complement in the genome
+        positions = []
+        start_search = 0
+        while True:
+            pos = genome_seq.find(seed_rc, start_search)
+            if pos == -1:
+                break
+            positions.append(pos)
+            start_search = pos + 1
+
+        for pos in positions:
+            # Situate the seed match near the 3' end of a 50 nt target window
+            start_win = max(0, pos - 35)
+            end_win = min(genome_len, start_win + win_len)
+            if end_win - start_win < win_len:
+                start_win = max(0, end_win - win_len)
+
+            window = genome_seq[start_win:end_win]
+
+            result = run_intarna(mirna_seq, window)
+            if result is None:
+                continue
+            dg, hyb, nbp = result
+            if dg > dg_threshold:
+                continue
+
+            candidates.append({
+                'miRNA_ID'   : mirna_id,
+                'miRNA_seq'  : mirna_seq,
+                'start'      : start_win,
+                'end'        : end_win,
+                'window_seq' : window,
+                'delta_G'    : round(dg, 3),
+                'hybridDP'   : hyb,
+                'n_base_pairs': nbp,
+                'seed_match' : 1,
+                'supp_match' : supp_match(mirna_seq, window),
+                'cts_gc'     : round(gc_content(window), 4),
+            })
+
+    print(f"  Multi-scan complete. Total candidates found: {len(candidates)}")
     candidates.sort(key=lambda x: x['delta_G'])
     return candidates[:top_n]
 
@@ -215,7 +290,7 @@ def stage2_score(candidates, model_pkl, train_csv):
         row = {}
         row['cts_gc'] = c['cts_gc']
         row['cts_au'] = sum(1 for b in c['window_seq'].upper() if b in 'ATU') / max(len(c['window_seq']),1)
-        row['mirna_gc'] = 0.0   # will be filled below
+        row['mirna_gc'] = gc_content(c.get('miRNA_seq', ''))
         row['seed_match'] = c['seed_match']
         row['supp_match'] = c['supp_match']
         row['motif_identity'] = c['seed_match'] * c['supp_match']
@@ -242,8 +317,8 @@ def main():
     parser = argparse.ArgumentParser(
         description='SeqFinder + miRNAProtPred 2.0: two-stage viral miRNA target scanner'
     )
-    parser.add_argument('--mirna',   required=True,
-                        help='Mature miRNA sequence (A/T/U/G/C)')
+    parser.add_argument('--mirna',   default='ALL',
+                        help='Mature miRNA sequence (A/T/U/G/C), path to a FASTA file of miRNAs, or "ALL" to scan the default database (default: ALL)')
     parser.add_argument('--genome',  required=True,
                         help='Path to viral mRNA/genome FASTA')
     parser.add_argument('--win',     type=int, default=50,
@@ -271,8 +346,8 @@ def main():
     print("="*60)
     print("  SeqFinder — Stage 1: Thermodynamic Genome Scan")
     print("="*60)
-    print(f"  miRNA   : {args.mirna}")
-    print(f"  Genome  : {args.genome}")
+    print(f"  miRNA Mode: {args.mirna}")
+    print(f"  Genome    : {args.genome}")
     # Verify IntaRNA executable exists and is runnable
     if not shutil.which(INTARNA_BIN):
         print(f"Error: IntaRNA executable not found at '{INTARNA_BIN}'", file=sys.stderr)
@@ -280,15 +355,50 @@ def main():
         sys.exit(1)
 
     genome_seq = load_fasta(args.genome)
-    candidates = scan_genome(
-        mirna_seq      = args.mirna,
-        genome_seq     = genome_seq,
-        win_len        = args.win,
-        step           = args.step,
-        dg_threshold   = args.dg,
-        top_n          = args.top,
-        seed_required  = args.seed,
-    )
+
+    # Resolve miRNAs to scan
+    mirnas = []
+    if args.mirna.upper() == "ALL":
+        db_path = pkg_data_dir / "data.xlsx"
+        if not db_path.exists():
+            print(f"Error: Default database not found at '{db_path}'", file=sys.stderr)
+            sys.exit(1)
+        import pandas as pd
+        print(f"Loading miRNA database from '{db_path}'...")
+        df_db = pd.read_excel(db_path, engine='openpyxl')
+        for _, row in df_db.iterrows():
+            mirna_id = str(row.get('Human miRNA ID', 'unknown')).strip()
+            mirna_seq = str(row.get('Sequence', '')).strip().upper()
+            if mirna_seq:
+                mirnas.append((mirna_id, mirna_seq))
+    elif Path(args.mirna).exists():
+        from Bio import SeqIO
+        print(f"Loading miRNAs from FASTA file '{args.mirna}'...")
+        for record in SeqIO.parse(args.mirna, "fasta"):
+            mirnas.append((record.id, str(record.seq).strip().upper()))
+    else:
+        mirnas.append(("Query_miRNA", args.mirna.strip().upper()))
+
+    if len(mirnas) > 1:
+        candidates = scan_genome_multiple(
+            mirnas         = mirnas,
+            genome_seq     = genome_seq,
+            win_len        = args.win,
+            dg_threshold   = args.dg,
+            top_n          = args.top,
+        )
+    else:
+        mirna_id, mirna_seq = mirnas[0]
+        candidates = scan_genome(
+            mirna_id       = mirna_id,
+            mirna_seq      = mirna_seq,
+            genome_seq     = genome_seq,
+            win_len        = args.win,
+            step           = args.step,
+            dg_threshold   = args.dg,
+            top_n          = args.top,
+            seed_required  = args.seed,
+        )
 
     if not candidates:
         print("No candidates found. Try relaxing --dg or --win.")
@@ -313,7 +423,8 @@ def main():
     print(f"  Top 5 candidates:")
     for i, c in enumerate(candidates[:5]):
         score_str = f"  ml_score={c['ml_score']:.3f}" if 'ml_score' in c else ""
-        print(f"    [{i+1}] pos={c['start']}-{c['end']}  "
+        mirna_id_str = f" mirna={c['miRNA_ID']}" if 'miRNA_ID' in c else ""
+        print(f"    [{i+1}]{mirna_id_str} pos={c['start']}-{c['end']}  "
               f"dG={c['delta_G']}  seed={c['seed_match']}"
               f"  gc={c['cts_gc']:.2f}{score_str}")
 

@@ -14,7 +14,7 @@ setup(
     url="https://github.com/somenath-combio/mirnaprotpred2",
     packages=find_packages(),
     package_data={
-        "mirnaprotpred2.SeqFinder": ["data/*.pkl", "data/*.csv"],
+        "mirnaprotpred2.SeqFinder": ["data/*.pkl", "data/*.csv", "data/*.xlsx"],
     },
     include_package_data=True,
     entry_points={
