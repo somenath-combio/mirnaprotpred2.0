@@ -98,6 +98,12 @@ VIRUS_TO_FAMILY = {
 }
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='miRNAProtPred 2.0: ML Model Training and Generalization Validation Pipeline'
+    )
+    parser.parse_args()
+
     print("Loading extracted feature dataset...")
     df = pd.read_csv(INPUT_FEATURES_CSV)
     
