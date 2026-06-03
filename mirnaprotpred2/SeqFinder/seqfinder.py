@@ -363,7 +363,7 @@ def scan_genome_multiple(mirnas, genome_seq, win_len=50, dg_threshold=-5.0, top_
     return candidates[:top_n]
 
 
-def stage2_score(candidates, model_pkl, train_csv):
+def stage2_score(candidates, model_pkl, train_csv, target_name=None):
     """
     Run Stage 2: score candidates through miRNAProtPred 2.0.
     Requires: the saved RandomForest model and training CSV for feature column names.
@@ -380,34 +380,95 @@ def stage2_score(candidates, model_pkl, train_csv):
             'struct_loops','site_position_norm']
     feat_cols = [c for c in ref.columns if c not in meta and c not in DROP]
 
+    # Dynamically detect target type and virus family
+    if target_name is None:
+        for arg in sys.argv:
+            if any(arg.lower().endswith(ext) for ext in ['.fasta', '.fa', '.fna', '.txt']):
+                target_name = arg
+                break
+        if target_name is None:
+            target_name = sys.argv[-1] if len(sys.argv) > 1 else ""
+
+    target_name_str = str(target_name).lower()
+    
+    # Detect virus family
+    virus_family_col = None
+    if "hiv" in target_name_str or "retroviridae" in target_name_str or "lentivirus" in target_name_str or "htlv" in target_name_str or "retrovirus" in target_name_str or "immunodeficiency" in target_name_str:
+        virus_family_col = "virusfamily_Retroviridae"
+    elif "influenza" in target_name_str or "orthomyxoviridae" in target_name_str or "flu" in target_name_str:
+        virus_family_col = "virusfamily_Orthomyxoviridae"
+    elif "ebola" in target_name_str or "filoviridae" in target_name_str or "marburg" in target_name_str or "zaire" in target_name_str:
+        virus_family_col = "virusfamily_Filoviridae"
+    elif "zika" in target_name_str or "dengue" in target_name_str or "flaviviridae" in target_name_str or "hcv" in target_name_str or "hepacivirus" in target_name_str or "hepatitis c" in target_name_str or "west nile" in target_name_str:
+        virus_family_col = "virusfamily_Flaviviridae"
+    elif "hepatitis b" in target_name_str or "hepadnaviridae" in target_name_str or "hbv" in target_name_str:
+        virus_family_col = "virusfamily_Hepadnaviridae"
+    elif "herpes" in target_name_str or "herpesviridae" in target_name_str or "ebv" in target_name_str or "hcmv" in target_name_str or "cytomegalovirus" in target_name_str or "epstein-barr" in target_name_str or "kshv" in target_name_str or "hhv" in target_name_str:
+        virus_family_col = "virusfamily_Herpesviridae"
+    elif "adenovirus" in target_name_str or "adenoviridae" in target_name_str:
+        virus_family_col = "virusfamily_Adenoviridae"
+    elif "papillomavirus" in target_name_str or "papillomaviridae" in target_name_str or "hpv" in target_name_str:
+        virus_family_col = "virusfamily_Papillomaviridae"
+    elif "coxsackie" in target_name_str or "picornaviridae" in target_name_str or "poliovirus" in target_name_str or "enterovirus" in target_name_str or "rhinovir" in target_name_str:
+        virus_family_col = "virusfamily_Picornaviridae"
+    elif "pneumovirus" in target_name_str or "pneumoviridae" in target_name_str or "rsv" in target_name_str or "respiratory syncytial" in target_name_str:
+        virus_family_col = "virusfamily_Pneumoviridae"
+    elif "rhabdoviridae" in target_name_str or "rabies" in target_name_str or "vesicular" in target_name_str or "vsiv" in target_name_str:
+        virus_family_col = "virusfamily_Rhabdoviridae"
+    elif "togaviridae" in target_name_str or "sindbis" in target_name_str or "rubella" in target_name_str or "chikungunya" in target_name_str or "eeev" in target_name_str:
+        virus_family_col = "virusfamily_Togaviridae"
+    elif "bornaviridae" in target_name_str or "borna" in target_name_str or "bdv" in target_name_str:
+        virus_family_col = "virusfamily_Bornaviridae"
+    elif "arteriviridae" in target_name_str or "arterivirus" in target_name_str:
+        virus_family_col = "virusfamily_Arteriviridae"
+
+    # Detect target type
+    target_type_col = "targettype_region"
+    if any(k in target_name_str for k in ["gene", "nef", "gag", "tat", "rev", "vp40", "gp", "ns5a", "orf", "poly", "ul122", "cds"]):
+        target_type_col = "targettype_gene"
+    elif any(k in target_name_str for k in ["mrna", "transcript", "utr", "pgrna"]):
+        target_type_col = "targettype_transcript"
+
     def dinuc(seq):
-        bases = 'ACGT'; seq = seq.upper().replace('U','T')
+        bases = 'ACGU'
+        seq = seq.upper().replace('T', 'U')
         d = {a+b: 0 for a in bases for b in bases}
         total = max(len(seq)-1, 1)
         for i in range(len(seq)-1):
             k = seq[i:i+2]
             if k in d: d[k] += 1
-        return {f'dn_{k}': v/total for k,v in d.items()}
+        return {f'dinuc_{k}': v/total for k,v in d.items()}
 
     def trinuc(seq):
-        seq = seq.upper().replace('U','T')
-        cats = {'AAA':0,'AAG':0,'GAA':0,'GAG':0,
-                'CCC':0,'CCT':0,'TCC':0,'TCT':0}
+        seq = seq.upper().replace('T', 'U')
+        cats = {'AAA':0, 'UUU':0, 'CCC':0, 'GGG':0, 'GCC':0, 'CGC':0, 'GCG':0, 'CGU':0}
         total = max(len(seq)-2, 1)
         for i in range(len(seq)-2):
             t = seq[i:i+3]
             if t in cats: cats[t] += 1
-        return {f'tn_{k}': v/total for k,v in cats.items()}
+        return {f'trinuc_{k}': v/total for k,v in cats.items()}
 
     rows = []
     for c in candidates:
         row = {}
+        row['cts_len'] = len(c['window_seq'])
+        row['mirna_len'] = len(c.get('miRNA_seq', ''))
         row['cts_gc'] = c['cts_gc']
         row['cts_au'] = sum(1 for b in c['window_seq'].upper() if b in 'ATU') / max(len(c['window_seq']),1)
         row['mirna_gc'] = gc_content(c.get('miRNA_seq', ''))
         row['seed_match'] = c['seed_match']
         row['supp_match'] = c['supp_match']
         row['motif_identity'] = c['seed_match'] * c['supp_match']
+        
+        # Populate target type
+        row['targettype_gene'] = 1 if target_type_col == "targettype_gene" else 0
+        row['targettype_transcript'] = 1 if target_type_col == "targettype_transcript" else 0
+        row['targettype_region'] = 1 if target_type_col == "targettype_region" else 0
+        
+        # Populate virus family
+        for vf in [c for c in feat_cols if c.startswith("virusfamily_")]:
+            row[vf] = 1 if vf == virus_family_col else 0
+
         row.update(dinuc(c['window_seq']))
         row.update(trinuc(c['window_seq']))
         rows.append(row)
